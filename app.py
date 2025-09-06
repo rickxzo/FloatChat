@@ -7,11 +7,13 @@ from dotenv import load_dotenv
 import json
 import requests
 from flask import Flask, send_from_directory
+import google.generativeai as genai
+import re
 
 # load env once
 load_dotenv()
 
-app = Flask(__name__, static_folder="dist", template_folder="dist")      
+app = Flask(_name_, static_folder="dist", template_folder="dist")      
 CORS(app)
 
 @app.route("/", defaults={"path": ""})
@@ -26,6 +28,8 @@ latest_history = {}
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
 
+genai.configure(api_key=GEMINI_API_KEY)
+
 # --------------------- GEMINI SSE PAIR ---------------------
 
 @app.route("/api/stream", methods=["POST"])
@@ -34,8 +38,9 @@ def store_history():
     latest_history = request.get_json()
     return {"status": "ok"}
 
+
 @app.route("/api/stream", methods=["GET"])
-def gemini_stream():  # renamed to avoid colliding with /stream below
+def gemini_stream():
     global latest_history
     if not latest_history:
         return Response("data: ERROR: No history received\n\n", mimetype="text/event-stream")
@@ -61,15 +66,74 @@ def gemini_stream():  # renamed to avoid colliding with /stream below
         if not text:
             return Response("data: ERROR: Empty response\n\n", mimetype="text/event-stream")
 
-        # stream word-by-word
+        # stream by paragraphs/lines instead of words
         def generate():
-            words = text.split()
-            chunk_size = 5
-            for i in range(0, len(words), chunk_size):
-                chunk = " ".join(words[i:i+chunk_size])
-                yield f"data: {chunk}\n\n"
-                time.sleep(0.5)
+            # Ensure there's a newline before numbered points (handles single and multiple digits)
+            processed_text = re.sub(r"(?<!\n)(\b\d{1,3}\.\s+)", r"\n\1", text)
+
+            # Ensure there's a newline before bullets (handles - and •)
+            processed_text = re.sub(r"(?<!\n)([-•]\s+)", r"\n\1", processed_text)
+
+            # Trim leading/trailing whitespace
+            processed_text = processed_text.strip()
+
+            # Split into lines
+            lines = processed_text.split("\n")
+
+            for line in lines:
+                if line.strip():
+                    yield f"data: {line.strip()}\n\n"
+                    time.sleep(0.05)
+
             yield "data: [END]\n\n"
+
+
+
+        return Response(stream_with_context(generate()), mimetype="text/event-stream")
+
+    except Exception as e:
+        return Response(f"data: ERROR: {str(e)}\n\n", mimetype="text/event-stream")
+
+    
+@app.route("/api/study-stream", methods=["POST"])
+def study_stream():
+    data = request.json
+    message = data.get("message")
+    if not message:
+        return Response("data: ERROR: No message provided\n\n", mimetype="text/event-stream")
+
+    try:
+        raw = Router.gen(message)
+        try:
+            parsed = json.loads(raw)
+            output_text = parsed.get("output", raw)
+        except Exception:
+            output_text = raw
+
+        if not output_text:
+            return Response("data: ERROR: Empty output\n\n", mimetype="text/event-stream")
+
+        # stream by paragraphs/lines instead of words
+        def generate():
+            # Ensure there's a newline before numbered points (handles single and multiple digits)
+            processed_text = re.sub(r"(?<!\n)(\b\d{1,3}\.\s+)", r"\n\1", output_text)
+
+            # Ensure there's a newline before bullets (handles - and •)
+            processed_text = re.sub(r"(?<!\n)([-•]\s+)", r"\n\1", processed_text)
+
+            # Trim leading/trailing whitespace
+            processed_text = processed_text.strip()
+
+            # Split into lines
+            lines = processed_text.split("\n")
+
+            for line in lines:
+                if line.strip():
+                    yield f"data: {line.strip()}\n\n"
+                    time.sleep(0.05)
+
+            yield "data: [END]\n\n"
+
 
         return Response(stream_with_context(generate()), mimetype="text/event-stream")
 
@@ -120,6 +184,7 @@ class TextAgent():
             input=input
         ):
             x += str(event)
+        x = x.replace("\\", "\\\\")
         return x
 
 Router = TextAgent(
@@ -355,5 +420,72 @@ def respond():
         "message": "Default response"
     })
 
-if __name__ == '__main__':
+@app.route("/api/study", methods=["POST"])
+def study_mode():
+    data = request.get_json()
+    user_msg = data.get("message", "")
+
+    response = agent.invoke({
+        "messages": [user_msg],
+        "output": "",
+        "tool_logs": [],
+        "response": ""
+    })
+
+    # Parse the stringified JSON
+    try:
+        parsed = json.loads(response["response"])
+        raw_text = parsed.get("output", "")
+    except Exception:
+        raw_text = response["response"]
+
+    # Clean the formatting
+    clean_text = raw_text.replace("\\n", "\n").replace("\\", "")
+
+    # Return ONLY the plain text (as string, not wrapped in an object)
+    return clean_text, 200, {"Content-Type": "text/plain"}
+
+
+# make sure you configure your API key once
+@app.route("/api/rename", methods=["POST"])
+def rename_chat():
+    data = request.json
+    user_msg = data.get("user", "").strip()
+    bot_msg = data.get("bot", "").strip()
+    mode = data.get("mode", "chat")
+
+    if not user_msg or not bot_msg:
+        return jsonify({"title": "New Chat"})
+
+    prompt = (
+        f"Summarize this {mode} conversation into a short 3-5 word title.\n\n"
+        f"User: {user_msg}\n"
+        f"Bot: {bot_msg}\n\n"
+        f"Title:"
+    )
+
+    try:
+        model = genai.GenerativeModel("gemini-2.0-flash")
+        resp = model.generate_content(
+            prompt,
+            generation_config={
+                "temperature": 0.3,
+                "max_output_tokens": 20
+            }
+        )
+
+        raw_title = (resp.text or "").strip().split("\n")[0]
+        words = raw_title.split()
+        title = " ".join(words[:5]) if words else "New Chat"
+
+    except Exception as e:
+        print("Gemini rename error:", e, "| Mode:", mode)
+        title = "New Chat"
+
+    return jsonify({"title": title})
+
+
+
+
+if _name_ == '_main_':
     app.run(host='0.0.0.0', port=5000, debug=True)
