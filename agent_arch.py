@@ -1,7 +1,15 @@
+import pandas as pd
+import numpy as np
+
+from PIL import Image
+import io
+
 import os
 from dotenv import load_dotenv
 load_dotenv()
 import json
+import sqlite3
+import tempfile
 
 from exa_py import Exa
 exa_api = os.getenv("EXA_API_KEY")
@@ -18,7 +26,7 @@ pine_api = os.getenv("PINECONE_API_KEY")
 pc = Pinecone(api_key=pine_api)
 index = pc.Index(host="avenchatbot-rz0q9xs.svc.aped-4627-b74a.pinecone.io")
 
-from daytona import Daytona, DaytonaConfig
+from daytona import Daytona, DaytonaConfig, SessionExecuteRequest
 config = DaytonaConfig(api_key=os.getenv("DAYTONA_API_KEY"))
 daytona = Daytona(config)
 
@@ -27,6 +35,13 @@ REPLICATE_API_TOKEN = os.getenv("REPLICATE_API_TOKEN")
 
 from langgraph.graph import StateGraph, START, END
 from typing import TypedDict
+
+def connect_db():
+    conn = sqlite3.connect('app.db',timeout=5)
+    return conn
+
+global data
+global cols
 
 class TextAgent():
     def __init__(self, model_name, system_prompt):
@@ -44,6 +59,44 @@ class TextAgent():
         ):
             x+=str(event)
         return x
+
+
+DBM = TextAgent(
+    "openai/gpt-5",
+    """
+    You are a SQL Coder. You are provided with an user query regarding the data,
+    with the DB tables and their schema in mind, you are to write the most relevant SQL command
+    to retrieve useful data.
+
+    @ SQL SCHEMA 
+
+    CREATE TABLE Data (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_name TEXT,
+    pi_name TEXT,
+    platform_number INTEGER,
+    cycle_num INTEGER,
+    data_centre TEXT,
+    data_mode TEXT,
+    float_no INTEGER,
+    firmware INTEGER,
+    platform_type TEXT,
+    juld DATETIME,
+    latitude FLOAT,
+    longitude FLOAT,
+    position_system TEXT);
+
+
+    CREATE TABLE Observation (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    data_id INTEGER,
+    station_param TEXT,
+    pressure FLOAT,
+    temp FLOAT,
+    psal FLOAT);
+    """
+)
+
 
 Router = TextAgent(
     "openai/o4-mini",
@@ -80,10 +133,9 @@ Router = TextAgent(
 
     Available action types:-
     1. reply: answer the user.
-    2. vector: search vectorDB.
-    3. web: search web.
-    4. research: call the research model.
-    5. analyse: call the analyzer model.
+    2. web: search web.
+    3. research: call the research model.
+    4. analyse: call the analyzer model.
 
     @ EXAMPLES
     prompt: Tell me about ARGO.
@@ -118,6 +170,41 @@ Router = TextAgent(
     as well as a log of assistants/tools you have called, along with your instructions and their outputs (if any).
     Do not call the same tool consecutively.
 
+    """
+)
+
+Viz = TextAgent(
+    "anthropic/claude-4-sonnet",
+    """
+    You are provided with a data schema (column names) as well as a human prompt.
+    The data is produced by another agent in respect to the human prompt, making it the most relevant information available.
+    You duty is to understand the user's demand, the data provided and hence decide on the best possible visualization tactic
+    to represent the data. 
+    With that understanding, you are required to complete the provided python script to create a matplotlib plot for the same.
+    If you consider that no visualization is required for the particular case, answer only with 'INVAL'.
+
+    Remember that the completed version of the code you return is to be executed, make it accurate and follow the provded format.
+    
+    import requests
+    import matplotlib.pyplot as plt
+
+    
+    #response = requests.get("http://127.0.0.1:5000/data")
+    #data = response["data"]
+    #cols = response["cols"]
+    data = [('2019', 34.48)]
+    cols = ['year', 'mean_sss']
+
+    ### YOUR CODE HERE
+
+
+    plt.savefig("my_plot.png")
+        
+    
+    complete the above code and return (if necessary, otherwise return 'INVAL').
+
+    DO NOT RETURN ANYTHING EXCEPT EXACTLY THE CODE.
+    NO NEED TO ADD ```python ``` at the start and end.
     """
 )
 
@@ -192,7 +279,6 @@ def web_search(state: CB):
         "tool_logs": logs
     }
 
-
 def research(state: CB):
     print("RESEARCH INVOKED")
     query = json.loads(state["output"])["output"]
@@ -213,9 +299,45 @@ def research(state: CB):
         "tool_logs": logs
     }
 
-
 def reply(state: CB):
     print("REPLY INVOKED")
+    return {
+        "response": json.loads(state["output"])["output"]
+    }
+
+def analyse(state: CB):
+    print("ANALYZE INVOKED")
+    cmd = DBM.gen(json.loads(state["output"])["output"])
+    conn = connect_db()
+    curr = conn.cursor()
+    curr.execute(
+        cmd
+    )
+    print(cmd)
+    result = curr.fetchall()
+    conn.close()
+    print(result)
+    columns = [desc[0] for desc in curr.description]
+    print(columns)
+    global data
+    global cols 
+    data = result
+    cols = columns
+    
+    print(data, cols)
+    input = {
+        "prompt": json.loads(state["output"])["output"],
+        "schema": columns
+    }
+    plot = Viz.gen(str(input))
+    print("PYCODE AHEAD ###################")
+    print(plot)
+    sandbox = daytona.create()
+    response = sandbox.process.code_run(plot)
+    print("RESPONSE: ", response)
+    files = sandbox.fs.download_file("/home/daytona/my_plot.png")
+    img = Image.open(io.BytesIO(files))
+    img.show()
     return {
         "response": json.loads(state["output"])["output"]
     }
@@ -225,6 +347,7 @@ agent_graph.add_node("start", start)
 agent_graph.add_node("reply", reply)
 agent_graph.add_node("web", web_search)
 agent_graph.add_node("research", research)
+agent_graph.add_node("analyse", analyse)
 
 
 agent_graph.add_edge(START, "start")
@@ -233,7 +356,7 @@ agent_graph.add_conditional_edges(
     router,
     {
         "reply": "reply",
-        "analyse": "reply",
+        "analyse": "analyse",
         "vector": "reply",
         "web": "web",
         "research": "research"
@@ -242,9 +365,11 @@ agent_graph.add_conditional_edges(
 agent_graph.add_edge("reply", END)
 agent_graph.add_edge("web", "start")
 agent_graph.add_edge("research", "start")
+agent_graph.add_edge("analyse", "reply")
 agent = agent_graph.compile()
 
-msg = input("Whats your query?: ")
+
+"""msg = input("Whats your query?: ")
 
 response = agent.invoke({
     "messages": msg,
@@ -252,4 +377,32 @@ response = agent.invoke({
     "tool_logs": [],
     "response": ""
 })
-print(response["response"])
+print(response["response"])"""
+
+
+from flask import Flask, jsonify
+
+app = Flask(__name__)
+
+@app.route("/", methods=["GET","POST"])
+def index():
+    msg = input("Whats your query?: ")
+    response = agent.invoke({
+        "messages": msg,
+        "output": "",
+        "tool_logs": [],
+        "response": ""
+    })
+    return response["response"]
+
+@app.route("/data", methods=["GET","POST"])
+def data():
+    global data 
+    global cols 
+    return jsonify({
+        "data": data,
+        "cols": cols
+    })
+
+if __name__ == "__main__":
+    app.run(debug=True)
