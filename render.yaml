@@ -1,10 +1,10 @@
-# Free blueprint — no persistent disk (SQLite ephemeral)
+# Paid blueprint — persistent backend service (starter) + free static site
 services:
   - type: web
     runtime: python
     name: flask-backend
     branch: David-Jones
-    plan: free
+    plan: starter
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn app:app --bind 0.0.0.0:$PORT
 
