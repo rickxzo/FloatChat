@@ -1,48 +1,30 @@
-# Render Blueprint (render.yaml) — SQLite with persistent disk
+# Render Blueprint (render.yaml) – SQLite with persistent disk
 # Place this file at the ROOT of the Git branch you want Render to deploy.
-# IMPORTANT: This config mounts a persistent Render disk at /var/data and stores the SQLite DB there.
-# Your Flask app should read the SQLITE_PATH env var (default below) and open that file path.
 
 services:
   - type: web
     name: flask-backend
-    # Change to the branch you will connect in Render (e.g. main or the feature branch)
-    branch: main
+    branch: David-Jones
     env: python
     plan: starter
     buildCommand: pip install -r requirements.txt
-    # Update 'app:app' to point to your Flask entrypoint if different
     startCommand: gunicorn app:app --bind 0.0.0.0:$PORT
-    # Attach the persistent disk where the SQLite file will live
     disks:
       - name: sqlite-disk
         mountPath: /var/data
-    # Environment variable your app should use to find the SQLite DB file
     envVars:
       - key: SQLITE_PATH
         value: /var/data/app.db
 
-  - type: static_site
+  - type: static
     name: react-frontend
-    branch: main
+    branch: David-Jones
     plan: free
     env: node
-    # If your frontend is in a subfolder, prefix build command with `cd frontend &&`
-    buildCommand: yarn install && yarn build
+    buildCommand: npm install && npm run build
     staticPublishPath: dist
 
-# Define persistent disk resource used above.
 disks:
   - name: sqlite-disk
     sizeGb: 1
     plan: standard
-
-# Notes:
-# - Render provides an attached persistent disk which remains between deploys.
-#   Use the mounted path (here, /var/data) for your SQLite file so it persists.
-# - For production use, Postgres or another managed DB is still recommended.
-# - Ensure your Flask config uses environment variable SQLITE_PATH, e.g.:
-#     db_path = os.getenv('SQLITE_PATH', 'app.db')
-#     app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{db_path}"
-# - If your Flask app needs any other env vars (SECRET_KEY, FLASK_ENV, etc.), add them in envVars or in Render dashboard.
-# - If your app runs in a subfolder or uses Poetry/other package manager, adjust buildCommand accordingly.
