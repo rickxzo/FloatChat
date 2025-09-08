@@ -13,7 +13,6 @@ import re
 
 
 # ANALYSIS IMPORTS
-from PIL import Image
 import io
 import sqlite3
 import tempfile
