@@ -1,0 +1,11 @@
+pandas
+numpy
+flask
+flask_cors
+google.generativeai
+exa-py
+openai
+pinecone
+daytona
+replicate
+langgraph
