@@ -1,5 +1,4 @@
-# Render Blueprint (render.yaml) – SQLite with persistent disk
-# Place this file at the ROOT of the Git branch you want Render to deploy.
+# Render Blueprint (render.yaml) – Flask + React + SQLite with persistent disk
 
 services:
   - type: web
