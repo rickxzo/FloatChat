@@ -1,10 +1,9 @@
 # Render Blueprint (render.yaml) – Flask + React + SQLite with persistent disk
-
 services:
   - type: web
+    runtime: python
     name: flask-backend
     branch: David-Jones
-    env: python
     plan: starter
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn app:app --bind 0.0.0.0:$PORT
@@ -15,11 +14,11 @@ services:
       - key: SQLITE_PATH
         value: /var/data/app.db
 
-  - type: static
+  - type: web
+    runtime: static
     name: react-frontend
     branch: David-Jones
     plan: free
-    env: node
     buildCommand: npm install && npm run build
     staticPublishPath: dist
 
