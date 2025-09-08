@@ -33,10 +33,6 @@ def serve(path):
         return send_from_directory(app.static_folder, "index.html")
 
 latest_history = {}
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
-
-genai.configure(api_key=GEMINI_API_KEY)
 
 # --------------------- DATABASE CONNECTION ---------------------
 
