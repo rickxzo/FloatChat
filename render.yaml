@@ -1,10 +1,29 @@
-# Minimal test blueprint (web service only)
+# Render Blueprint (render.yaml) – Flask + React + SQLite with persistent disk
+
 services:
   - type: web
     name: flask-backend
     branch: David-Jones
     env: python
     plan: starter
-    buildCommand: echo "no-op"
-    startCommand: echo "started"
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT
+    disks:
+      - name: sqlite-disk
+        mountPath: /var/data
+    envVars:
+      - key: SQLITE_PATH
+        value: /var/data/app.db
 
+  - type: static
+    name: react-frontend
+    branch: David-Jones
+    plan: free
+    env: node
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+
+disks:
+  - name: sqlite-disk
+    sizeGb: 1
+    plan: standard
