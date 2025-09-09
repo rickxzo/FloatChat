@@ -440,7 +440,16 @@ def index():
         if data and "msg" in data:
             msg = data["msg"]
     })
-    return jsonify({"response": response["response"], "msg": msg})
+  #  return jsonify({"response": response["response"], "msg": msg})
+    i = 0
+    lk = len(k)
+    while i<lk:
+        yield f"data: {k[i]}\n\n"
+        time.sleep(0.02)
+        i+=1
+    yield f"data: [DONE]\n\n"
+    return Response(event_stream(), mimetype="text/event-stream")
+
 
 @app.route("/data", methods=["GET","POST"])
 def data():
