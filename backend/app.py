@@ -443,6 +443,7 @@ def index():
     
 @app.route("/respond", methods=["GET", "POST"])
 def respond():
+    global gns
     if request.method=="POST":
         data = request.get_json()
         message = data.get("message","")
@@ -453,13 +454,11 @@ def respond():
             "tool_logs": [],
             "response": ""
         })
-        global gns
         gns = response["response"].split()
         return {"status":"ok"}
     
   #  return jsonify({"response": response["response"], "msg": msg})
     else:
-        global gns
         def generate(k):
             i = 0
             lk = len(k)
