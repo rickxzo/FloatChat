@@ -262,7 +262,7 @@ DFM = TextAgent(
 ### BASE AGENT
 
 class CB(TypedDict):
-    messages: list[str]
+    messages: str
     output: str
     tool_logs: list[str, str]
     response: str
@@ -447,10 +447,17 @@ def respond():
     if request.method=="POST":
         data = request.get_json()
         app.logger.info("DATALOGGER %s", data)
-        message = data["messages"][0]["content"]
-        app.logger.info("POSTMSG %s", message)
+        num_msg = len(data["messages"])
+        convo = ""
+        for i in range(num_msg):
+            if data["messages"][i]["role"] == "user":
+                convo += f"User: {data["messages"][i]["content"]}\n"
+            else:
+                convo += f"You: {data["messages"][i]["content"]}\n"
+        
+        app.logger.info("POSTMSG %s", convo)
         response = agent.invoke({
-            "messages": [message],
+            "messages": convo,
             "output": "",
             "tool_logs": [],
             "response": ""
