@@ -446,6 +446,7 @@ def respond():
     global gns
     if request.method=="POST":
         data = request.get_json()
+        print(data)
         message = data.get("message","")
     
         response = agent.invoke({
@@ -459,6 +460,7 @@ def respond():
     
   #  return jsonify({"response": response["response"], "msg": msg})
     else:
+        print(gns)
         def generate(k):
             i = 0
             lk = len(k)
