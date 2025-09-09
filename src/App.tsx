@@ -206,7 +206,7 @@ export default function App() {
 
         } else {
           // --- Normal Chat Mode (Replicate) - keep existing SSE logic ---
-          await fetch("http://localhost:5000/api/stream", {
+          await fetch("https://floatchat-1.onrender.com/respond", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -218,7 +218,7 @@ export default function App() {
             signal: controller.signal,
           });
 
-          const response = await fetch("http://localhost:5000/api/stream", {
+          const response = await fetch("https://floatchat-1.onrender.com/respond", {
             method: "GET",
             signal: controller.signal,
           });
