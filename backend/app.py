@@ -7,7 +7,7 @@ load_dotenv()
 import os
 
 ### APP IMPORTS
-from flask import Flask, jsonify, render_template
+from flask import Flask, jsonify, render_template, send_from_directory
 from flask_cors import CORS
 import json
 import sqlite3
@@ -427,7 +427,13 @@ global b64
 app = Flask(__name__, static_folder="dist", template_folder="dist")   
 CORS(app)
 
-
+@app.route("/<path:path>")
+def serve(path):
+    if path != "" and os.path.exists(os.path.join(app.static_folder, path)):
+        return send_from_directory(app.static_folder, path)
+    else:
+        return send_from_directory(app.static_folder, "index.html")
+        
 @app.route("/")
 def index():
     return render_template("index.html")
