@@ -2,7 +2,7 @@ import base64
 import time
 
 global b64
-global gns
+gns = []
 
 
 ### ENVIRONMENT HANDLING
