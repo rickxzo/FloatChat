@@ -446,6 +446,7 @@ def respond():
     
     if request.method=="POST":
         data = request.get_json()
+        app.logger.info("DATALOGGER %s", data)
         message = data["messages"][0]["content"]
         app.logger.info("POSTMSG %s", message)
         response = agent.invoke({
