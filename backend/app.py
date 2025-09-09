@@ -8,6 +8,7 @@ import os
 
 ### APP IMPORTS
 from flask import Flask, jsonify, render_template
+from flask_cors import CORS
 import json
 import sqlite3
 def connect_db():
@@ -424,6 +425,7 @@ global b64
 ### APP ARCH
 
 app = Flask(__name__, static_folder="dist", template_folder="dist")   
+CORS(app)
 
 
 @app.route("/")
