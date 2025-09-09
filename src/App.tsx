@@ -139,7 +139,7 @@ export default function App() {
       try {
         if (mode === "study") {
           // For study mode, use direct API call instead of SSE for chart generation
-          const response = await fetch("http://localhost:5000/api/study", {
+          const response = await fetch("https://floatchat-1.onrender.com/respond", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
