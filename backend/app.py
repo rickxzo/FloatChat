@@ -446,8 +446,8 @@ def respond():
     global gns
     if request.method=="POST":
         data = request.get_json()
-        app.logger.info(data)
-        message = data.get("message","")
+        message = data["messages"][0]["content"]
+        app.logger.info(message)
     
         response = agent.invoke({
             "messages": [message],
