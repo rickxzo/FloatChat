@@ -443,6 +443,7 @@ def index():
     
 @app.route("/respond", methods=["GET", "POST"])
 def respond():
+    
     if request.method=="POST":
         data = request.get_json()
         message = data["messages"][0]["content"]
@@ -454,12 +455,12 @@ def respond():
             "response": ""
         })
         session["gns"] = response["response"].split()
-        app.logger.info("POSTLOGGER",session["gns"])
+        app.logger.info("POSTLOGGER %s", session["gns"])
         return {"status":"ok", "received": session["gns"]}
     
   #  return jsonify({"response": response["response"], "msg": msg})
     else:
-        app.logger.info("GETLOGGER",session["gns"])
+        app.logger.info("POSTLOGGER %s", session["gns"])
         def generate(k):
             i = 0
             lk = len(k)
