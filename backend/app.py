@@ -213,11 +213,9 @@ Viz = TextAgent(
     import matplotlib.pyplot as plt
 
     
-    #response = requests.get("http://127.0.0.1:5000/data")
-    #data = response["data"]
-    #cols = response["cols"]
-    data = [('2019', 34.48)]
-    cols = ['year', 'mean_sss']
+    response = requests.get("http://https://floatchat-1.onrender.com/data")
+    data = response["data"]
+    cols = response["cols"]
 
     ### YOUR CODE HERE
 
@@ -246,11 +244,9 @@ DFM = TextAgent(
     import pandas as pd
     import numpy as np
 
-    #response = requests.get("http://127.0.0.1:5000/data")
-    #data = response["data"]
-    #cols = response["cols"]
-    data = [('2019', 34.48)]
-    cols = ['year', 'mean_sss']
+    response = requests.get("http://127.0.0.1:5000/data")
+    data = response["data"]
+    cols = response["cols"]
 
     ### YOUR CODE HERE. RETURN ALL ANALYSIS IN A SINGLE PRINT.
 
