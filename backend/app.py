@@ -446,7 +446,7 @@ def respond():
     global gns
     if request.method=="POST":
         data = request.get_json()
-        print(data)
+        app.logger.info(data)
         message = data.get("message","")
     
         response = agent.invoke({
