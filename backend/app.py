@@ -443,11 +443,10 @@ def index():
     
 @app.route("/respond", methods=["GET", "POST"])
 def respond():
-    global gns
     if request.method=="POST":
+        global gns
         data = request.get_json()
         message = data["messages"][0]["content"]
-        app.logger.info(message)
     
         response = agent.invoke({
             "messages": [message],
@@ -456,11 +455,13 @@ def respond():
             "response": ""
         })
         gns = response["response"].split()
+        app.logger.info(gns)
         return {"status":"ok", "received": gns}
     
   #  return jsonify({"response": response["response"], "msg": msg})
     else:
-        print(gns)
+        global gns
+        app.logger.info(gns)
         def generate(k):
             i = 0
             lk = len(k)
