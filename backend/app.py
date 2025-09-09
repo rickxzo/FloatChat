@@ -447,7 +447,7 @@ def respond():
     if request.method=="POST":
         data = request.get_json()
         message = data["messages"][0]["content"]
-    
+        app.logger.info("POSTMSG %s", message)
         response = agent.invoke({
             "messages": [message],
             "output": "",
@@ -460,7 +460,7 @@ def respond():
     
   #  return jsonify({"response": response["response"], "msg": msg})
     else:
-        app.logger.info("POSTLOGGER %s", session["gns"])
+        app.logger.info("GETLOGGER %s", session["gns"])
         def generate(k):
             i = 0
             lk = len(k)
