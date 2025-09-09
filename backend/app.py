@@ -423,6 +423,7 @@ agent_graph.add_edge("analyse", "start")
 agent = agent_graph.compile()
 
 global b64
+global output
 ### APP ARCH
 
 app = Flask(__name__, static_folder="dist", template_folder="dist")   
@@ -441,27 +442,32 @@ def index():
     
 @app.route("/respond", methods=["GET", "POST"])
 def respond():
-    data = request.get_json()
-    message = data["message"]
-
-    response = agent.invoke({
-        "messages": message,
-        "output": "",
-        "tool_logs": [],
-        "response": ""
-    })
-    output = response["response"].split()
+    if request.method=="POST":
+        data = request.get_json()
+        message = data.get("message","")
+    
+        response = agent.invoke({
+            "messages": [message],
+            "output": "",
+            "tool_logs": [],
+            "response": ""
+        })
+        global output
+        output = response["response"].split()
+        return {"status":"ok"}
     
   #  return jsonify({"response": response["response"], "msg": msg})
-    def generate(k):
-        i = 0
-        lk = len(k)
-        while i<lk:
-            yield f"data: {k[i]}\n\n"
-            time.sleep(0.02)
-            i+=1
-        #yield f"data: [DONE]\n\n"
-    return Response(stream_with_context(generate(output)), mimetype="text/event-stream")
+    else:
+        global output
+        def generate(k):
+            i = 0
+            lk = len(k)
+            while i<lk:
+                yield f"data: {k[i]}\n\n"
+                time.sleep(0.02)
+                i+=1
+            #yield f"data: [DONE]\n\n"
+        return Response(stream_with_context(generate(output)), mimetype="text/event-stream")
 
 
 @app.route("/data", methods=["GET","POST"])
