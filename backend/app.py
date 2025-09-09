@@ -454,12 +454,12 @@ def respond():
             "response": ""
         })
         session["gns"] = response["response"].split()
-        app.logger.info(session["gns"])
+        app.logger.info("POSTLOGGER",session["gns"])
         return {"status":"ok", "received": session["gns"]}
     
   #  return jsonify({"response": response["response"], "msg": msg})
     else:
-        app.logger.info(session["gns"])
+        app.logger.info("GETLOGGER",session["gns"])
         def generate(k):
             i = 0
             lk = len(k)
