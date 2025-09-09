@@ -456,7 +456,7 @@ def respond():
             "response": ""
         })
         gns = response["response"].split()
-        return {"status":"ok"}
+        return {"status":"ok", "received": gns}
     
   #  return jsonify({"response": response["response"], "msg": msg})
     else:
