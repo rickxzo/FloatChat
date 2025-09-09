@@ -2,7 +2,6 @@ import base64
 import time
 
 global b64
-gns = []
 
 
 ### ENVIRONMENT HANDLING
@@ -11,7 +10,7 @@ load_dotenv()
 import os
 
 ### APP IMPORTS
-from flask import Flask, jsonify, render_template, send_from_directory, request, Response, stream_with_context
+from flask import Flask, jsonify, render_template, send_from_directory, request, Response, stream_with_context, session
 from flask_cors import CORS
 import json
 import sqlite3
@@ -428,6 +427,7 @@ agent = agent_graph.compile()
 ### APP ARCH
 
 app = Flask(__name__, static_folder="dist", template_folder="dist")   
+app.secret_key = "floatkey"
 CORS(app)
 
 @app.route("/<path:path>")
@@ -444,7 +444,6 @@ def index():
 @app.route("/respond", methods=["GET", "POST"])
 def respond():
     if request.method=="POST":
-        global gns
         data = request.get_json()
         message = data["messages"][0]["content"]
     
@@ -454,14 +453,13 @@ def respond():
             "tool_logs": [],
             "response": ""
         })
-        gns = response["response"].split()
-        app.logger.info(gns)
-        return {"status":"ok", "received": gns}
+        session["gns"] = response["response"].split()
+        app.logger.info(session["gns"])
+        return {"status":"ok", "received": session["gns"]}
     
   #  return jsonify({"response": response["response"], "msg": msg})
     else:
-        global gns
-        app.logger.info(gns)
+        app.logger.info(session["gns"])
         def generate(k):
             i = 0
             lk = len(k)
@@ -470,7 +468,7 @@ def respond():
                 time.sleep(0.02)
                 i+=1
             #yield f"data: [DONE]\n\n"
-        return Response(stream_with_context(generate(gns)), mimetype="text/event-stream")
+        return Response(stream_with_context(generate(session["gns"])), mimetype="text/event-stream")
 
 
 @app.route("/data", methods=["GET","POST"])
