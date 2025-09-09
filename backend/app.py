@@ -439,7 +439,7 @@ def index():
         data = request.get_json()
         if data and "msg" in data:
             msg = data["msg"]
-    })
+    
   #  return jsonify({"response": response["response"], "msg": msg})
     i = 0
     lk = len(k)
