@@ -7,7 +7,7 @@ load_dotenv()
 import os
 
 ### APP IMPORTS
-from flask import Flask, jsonify
+from flask import Flask, jsonify, render_template
 import json
 import sqlite3
 def connect_db():
