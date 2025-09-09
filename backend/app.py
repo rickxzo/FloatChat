@@ -23,8 +23,11 @@ load_dotenv()
 
 app = Flask(__name__, static_folder="dist", template_folder="dist")      
 CORS(app)
-
-@app.route("/", defaults={"path": ""})
+@app.route("/")
+def index():
+    return render_template("index.html")
+  
+@app.route("/repond", defaults={"path": ""})
 @app.route("/<path:path>")
 def serve(path):
     if path != "" and os.path.exists(os.path.join(app.static_folder, path)):
