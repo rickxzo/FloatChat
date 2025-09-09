@@ -431,7 +431,7 @@ def index():
     return render_template("index.html")
     
 @app.route("/respond", methods=["GET", "POST"])
-def index():
+def respond():
     msg = None
     if request.method == "POST":
         data = request.get_json()
