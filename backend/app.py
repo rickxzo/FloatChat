@@ -440,15 +440,19 @@ def index():
     
 @app.route("/respond", methods=["GET", "POST"])
 def respond():
-    msg = None
-    if request.method == "POST":
-        data = request.get_json()
-        print(data)
-        if data and "msg" in data:
-            msg = data["msg"]
+    data = request.json()
+    message = data.get("message")
+
+    response = agent.invoke({
+        "messages": message,
+        "output": "",
+        "tool_logs": [],
+        "response": ""
+    })
+    output = response["response"].split()
     
   #  return jsonify({"response": response["response"], "msg": msg})
-    def event_stream(k):
+    def generate(k):
         i = 0
         lk = len(k)
         while i<lk:
@@ -456,7 +460,7 @@ def respond():
             time.sleep(0.02)
             i+=1
         #yield f"data: [DONE]\n\n"
-    return Response(event_stream(msg), mimetype="text/event-stream")
+    return Response(stream_with_context(generate(output)), mimetype="text/event-stream")
 
 
 @app.route("/data", methods=["GET","POST"])
