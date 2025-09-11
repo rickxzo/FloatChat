@@ -479,17 +479,14 @@ def respond():
 
 @app.route("/data", methods=["GET","POST"])
 def data():
-    global data 
-    global cols 
     return jsonify({
-        "data": data,
-        "cols": cols
+        "data": session["data"],
+        "cols": session["cols"]
     })
 
 @app.route("/img", methods=["GET", "POST"])
 def img():
-    global b64
-    return jsonify({"image": b64})
+    return jsonify({"image": session["b64"]})
 
 
 if __name__ == "__main__":
