@@ -351,7 +351,7 @@ def analyse(state: CB):
     cmd = DBM.gen(json.loads(state["output"])["output"])
     conn = connect_db()
     curr = conn.cursor()
-    print(cmd)
+    app.logger.info("SQL CMD: ",cmd)
     curr.execute(
         cmd
     )
@@ -484,8 +484,8 @@ def respond():
 
 @app.route("/data", methods=["GET","POST"])
 def data():
-    data = session.get("data")
-    cols = session.get("cols")
+    data = session["data"]
+    cols = session["cols"]
     app.logger.info("JSON DATA %s %s: ", data, cols)
     return jsonify({
         "data": data,
