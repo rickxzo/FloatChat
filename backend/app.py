@@ -56,7 +56,12 @@ class TextAgent():
             self.model_name,
             input=input
         ):
-            x+=str(event)
+            try:
+                x += str(event)
+            except TypeError as e:
+                app.logger.error("Failed to stringify event of type %s: %r (error: %s)", type(event), event, e)
+                raise
+
         return x
 
 ### AGENT-HEADS
@@ -213,7 +218,7 @@ Viz = TextAgent(
     import matplotlib.pyplot as plt
 
     
-    response = requests.get("http://https://floatchat-1.onrender.com/data")
+    response = requests.get("http://floatchat-1.onrender.com/data")
     data = response["data"]
     cols = response["cols"]
 
@@ -244,7 +249,7 @@ DFM = TextAgent(
     import pandas as pd
     import numpy as np
 
-    response = requests.get("http://127.0.0.1:5000/data")
+    response = requests.get(""http://floatchat-1.onrender.com/data"")
     data = response["data"]
     cols = response["cols"]
 
