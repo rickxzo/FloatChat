@@ -219,8 +219,11 @@ Viz = TextAgent(
 
     
     response = requests.get("http://floatchat-1.onrender.com/data")
-    data = response["data"]
-    cols = response["cols"]
+
+    payload = response.json()
+
+    data = payload.get("data")
+    cols = payload.get("cols")
 
     ### YOUR CODE HERE
 
@@ -479,9 +482,12 @@ def respond():
 
 @app.route("/data", methods=["GET","POST"])
 def data():
+    data = session.get("data")
+    cols = session.get("cols")
+    app.logger.info("JSON DATA %s %s: ", data, cols)
     return jsonify({
-        "data": session["data"],
-        "cols": session["cols"]
+        "data": data,
+        "cols": cols
     })
 
 @app.route("/img", methods=["GET", "POST"])
