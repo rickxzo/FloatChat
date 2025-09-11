@@ -9,3 +9,4 @@ pinecone
 daytona
 replicate
 langgraph
+pillow
