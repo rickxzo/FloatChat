@@ -1,7 +1,8 @@
 import base64
 import time
 
-global b64
+data = []
+cols = []
 
 
 ### ENVIRONMENT HANDLING
@@ -359,12 +360,12 @@ def analyse(state: CB):
     conn.close()
     columns = [desc[0] for desc in curr.description]
     app.logger.info("SQL OUT: %s", columns)
-    
-    session["data"] = result
-    session["cols"] = columns
-    app.logger.info("SESSION INFO: %s", session)
-    app.logger.info("SESSION DATA: %s", session["data"])
-    app.logger.info("SESSION COLS: %s", session["cols"])
+    global data
+    global cols
+    data = result
+    cols = columns
+    app.logger.info("SESSION DATA: %s", data)
+    app.logger.info("SESSION COLS: %s", cols)
     input = {
         "prompt": json.loads(state["output"])["output"],
         "schema": columns
@@ -484,8 +485,8 @@ def respond():
 
 @app.route("/data", methods=["GET","POST"])
 def data():
-    data = session["data"]
-    cols = session["cols"]
+    global data
+    global cols
     app.logger.info("JSON DATA %s %s: ", data, cols)
     return jsonify({
         "data": data,
