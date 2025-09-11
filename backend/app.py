@@ -3,6 +3,7 @@ import time
 
 data = []
 cols = []
+b64 = ""
 
 
 ### ENVIRONMENT HANDLING
@@ -379,7 +380,8 @@ def analyse(state: CB):
         app.logger.info("PLOT RESPONSE: %s", response)
         files = sandbox.fs.download_file("/home/daytona/my_plot.png")
         var = base64.b64encode(files).decode("ascii")
-        session["b64"] = var
+        global b64
+        b64 = var
         
 
     alz = DFM.gen(str(input))
@@ -495,7 +497,8 @@ def data():
 
 @app.route("/img", methods=["GET", "POST"])
 def img():
-    return jsonify({"image": session["b64"]})
+    global b64
+    return jsonify({"image": b64})
 
 
 if __name__ == "__main__":
