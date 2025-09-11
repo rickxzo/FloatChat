@@ -362,7 +362,7 @@ def analyse(state: CB):
     
     session["data"] = result
     session["cols"] = columns
-    #print(data, cols)
+    app.logger.info("SESSION INFO: %s", session)
     input = {
         "prompt": json.loads(state["output"])["output"],
         "schema": columns
