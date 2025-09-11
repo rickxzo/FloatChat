@@ -214,7 +214,10 @@ Viz = TextAgent(
     With that understanding, you are required to complete the provided python script to create a matplotlib plot for the same.
     If you consider that no visualization is required for the particular case, answer only with the word 'INVAL'.
 
-    Remember that the completed version of the code you return is to be executed, make it accurate and follow the provded format.
+    Remember that the completed version of the code you return is to be executed, make it accurate and follow the provided format.
+
+    NOTE: data variable in the code provided is a list of lists. Arguments like data[i]["argument_name"] would fail.
+    Use data[i][j] for accessing data points. the j-th data point would be corresponding to the j-th item in cols variable.
     
     import requests
     import matplotlib.pyplot as plt
@@ -249,6 +252,9 @@ DFM = TextAgent(
     and complete the code provided to you.
     You are free to use use pandas/numpy for your analysis.
     Remember that the completed version of the code you return is to be executed, make it accurate and follow the provded format.
+
+    NOTE: data variable in the code provided is a list of lists. Arguments like data[i]["argument_name"] would fail.
+    Use data[i][j] for accessing data points. the j-th data point would be corresponding to the j-th item in cols variable.
 
     import requests
     import pandas as pd
