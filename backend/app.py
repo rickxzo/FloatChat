@@ -1,5 +1,7 @@
 import base64
 import time
+from PIL import Image
+from io import BytesIO
 
 data = []
 cols = []
@@ -387,7 +389,7 @@ def analyse(state: CB):
         response = sandbox.process.code_run(plot)
         app.logger.info("PLOT RESPONSE: %s", response)
         files = sandbox.fs.download_file("/home/daytona/my_plot.png")
-        var = base64.b64encode(files).decode("ascii")
+        var = "data:image/png;base64,"+base64.b64encode(files).decode("ascii")
         global b64
         b64 = var
         
