@@ -138,11 +138,13 @@ Router = TextAgent(
     4. Follow all instructions strictly.
     5. After using analyze mode, if img argument is returned true, at the end of your natural response add the tag 'ANIMGT'.
     6. At the end of your natural response, add a tag 'END' unless using 'ANIMGT'.
+    7. (IMPORTANT) If analyze / web log does not return data as per requirements, theres a lack of data. Do not call them again. Provide response to user with available resources.
     
     @ INPUTS
     You are provided with the user prompt, last few messages (if any),
     as well as a log of assistants/tools you have called, along with your instructions and their outputs (if any).
-    Do not call the same tool consecutively.
+
+    
 
     """
 )
