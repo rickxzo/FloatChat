@@ -349,36 +349,32 @@ def analyse(state: CB):
     )
     result = curr.fetchall()
     conn.close()
-    print(result)
     columns = [desc[0] for desc in curr.description]
-    print(columns)
-    global data
-    global cols 
-    data = result
-    cols = columns
+    app.logger.info("SQL OUT: %s", columns)
     
-    print(data, cols)
+    session["data"] = result
+    session["cols"] = columns
+    #print(data, cols)
     input = {
         "prompt": json.loads(state["output"])["output"],
         "schema": columns
     }
     plot = Viz.gen(str(input))
-    print("PYCODE AHEAD ###################")
-    print(plot)
+    app.logger.info("PY CODE: %s", plot)
     sandbox = daytona.create()
+    
     if str(plot) != 'INVAL':
         response = sandbox.process.code_run(plot)
-        print("RESPONSE: ", response)
+        app.logger.info("PLOT RESPONSE: %s", response)
         files = sandbox.fs.download_file("/home/daytona/my_plot.png")
         var = base64.b64encode(files).decode("ascii")
-        global b64 
-        b64 = var
+        session["b64"] = var
         
 
     alz = DFM.gen(str(input))
-    print(alz)
+    app.logger.info("ALZ OUT: %s", alz)
     response = sandbox.process.code_run(alz)
-    print("RESPONSE: ", response.result)
+    app.logger.info("ALZ RESPONSE: %s", response.result)
 
     sandbox.delete()
 
