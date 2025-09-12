@@ -158,44 +158,25 @@ export function ChatInterface({
                 />
               </div>
 
-              {/* Server-generated chart display */}
-              {!isUser && msg.plot_url && (
-                <div className="max-w-[75%] w-full">
-                  <div className="p-4 bg-gradient-to-br from-blue-50 to-indigo-100 rounded-xl shadow-lg border border-blue-200">
-                    <div className="mb-2">
-                      <h3 className="text-lg font-semibold text-blue-800 flex items-center">
-                        📊 Generated Chart
-                      </h3>
-                    </div>
-                    <div className="chart-container bg-white p-2 rounded-lg shadow-inner">
-                      <img 
-                        src={`http://localhost:5000${msg.plot_url}?t=${Date.now()}`}
-                        alt="Generated Chart" 
-                        className="max-w-full h-auto rounded-lg shadow-md"
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.src = "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iI2Y5ZjlmOSIgc3Ryb2tlPSIjZGRkIiBzdHJva2Utd2lkdGg9IjIiLz4KICA8dGV4dCB4PSIyMDAiIHk9IjE1MCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjE2IiBmaWxsPSIjNjY2Ij5DaGFydCBub3QgYXZhaWxhYmxlPC90ZXh0Pgo8L3N2Zz4K";
-                        }}
-                        onLoad={() => {
-                          console.log("Chart loaded successfully");
-                        }}
-                      />
-                    </div>
+              {/* Chart display - FIXED VERSION */}
+              {!isUser && (msg.plot_url || msg.image_url) && (
+              <div className="max-w-[75%] w-full">
+                <div className="p-4 bg-gradient-to-br from-blue-50 to-indigo-100 rounded-xl shadow-lg border border-blue-200">
+                  <div className="mb-2">
+                    <h3 className="text-lg font-semibold text-blue-800 flex items-center">
+                      📊 Generated Chart
+                    </h3>
+                  </div>
+                  <div className="chart-container bg-white p-2 rounded-lg shadow-inner">
+                    <ChartImage 
+                      src={msg.plot_url || msg.image_url || "http://localhost:5000/img"} 
+                      messageIndex={i} 
+                    />
                   </div>
                 </div>
-              )}
+              </div>
+            )}
 
-              {/* Sandbox output (keep for backward compatibility but won't be used) */}
-              {!isUser && msg.sandbox && msg.sandbox_code && !msg.plot_url && (
-                <div className="max-w-[75%] w-full">
-                  <div className="p-4 bg-yellow-100 rounded-lg border border-yellow-300">
-                    <p className="text-sm text-yellow-800">
-                      Note: This chat is now using server-side chart generation. 
-                      Please refresh if you're seeing this message.
-                    </p>
-                  </div>
-                </div>
-              )}
 
               {/* Tool logs / sources */}
               {msg.role === "model" &&
@@ -256,6 +237,132 @@ export function ChatInterface({
           Send
         </button>
       </div>
+    </div>
+  );
+}
+
+// Separate component for chart image with better error handling and retry logic
+// Updated ChartImage component for base64 image handling
+function ChartImage({ src, messageIndex }: { src: string; messageIndex: number }) {
+  const [imageData, setImageData] = useState<string>("");
+  const [hasError, setHasError] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Function to fetch base64 image data
+  const fetchImageData = async () => {
+    try {
+      setIsLoading(true);
+      setHasError(false);
+      
+      const response = await fetch(src);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const base64Data = await response.text();
+      
+      // Check if the response is a valid base64 data URL
+      if (base64Data.startsWith('data:image/')) {
+        setImageData(base64Data);
+        setIsLoading(false);
+        console.log("Base64 image loaded successfully");
+      } else if (base64Data.length > 0) {
+        // If it's raw base64, add the data URL prefix
+        const formattedData = `data:image/png;base64,${base64Data}`;
+        setImageData(formattedData);
+        setIsLoading(false);
+        console.log("Raw base64 converted to data URL");
+      } else {
+        throw new Error("Empty response from server");
+      }
+      
+    } catch (error) {
+      console.error(`Failed to fetch base64 image (attempt ${retryCount + 1}):`, error);
+      setIsLoading(false);
+      
+      if (retryCount < 2) {
+        // Retry with exponential backoff
+        setTimeout(() => {
+          setRetryCount(prev => prev + 1);
+          fetchImageData();
+        }, 1000 * (retryCount + 1));
+      } else {
+        setHasError(true);
+      }
+    }
+  };
+
+  // Initial load and setup retry mechanism
+  useEffect(() => {
+    setRetryCount(0);
+    fetchImageData();
+  }, [src, messageIndex]);
+
+  // Manual retry function
+  const handleRetry = () => {
+    setRetryCount(0);
+    fetchImageData();
+  };
+
+  const handleImageLoad = () => {
+    console.log("Base64 image rendered successfully");
+  };
+
+  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+    console.error("Base64 image rendering failed:", e);
+    setHasError(true);
+  };
+
+  return (
+    <div className="relative min-h-[200px] flex items-center justify-center">
+      {isLoading && !hasError && (
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-50 rounded-lg">
+          <div className="flex flex-col items-center space-y-2">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <span className="text-sm text-gray-600">
+              {retryCount > 0 ? `Retrying... (${retryCount + 1}/3)` : "Loading chart..."}
+            </span>
+          </div>
+        </div>
+      )}
+      
+      {hasError ? (
+        <div className="flex flex-col items-center space-y-4 p-8 text-center">
+          <div className="text-4xl">📊</div>
+          <div className="space-y-2">
+            <p className="text-gray-600">Chart generation completed but display failed</p>
+            <p className="text-sm text-gray-500">
+              The chart was created successfully on the server but couldn't be displayed here.
+            </p>
+          </div>
+          <div className="space-x-2">
+            <button
+              onClick={handleRetry}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm"
+            >
+              Retry
+            </button>
+            <a
+              href={src}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition text-sm"
+            >
+              View Direct
+            </a>
+          </div>
+        </div>
+      ) : imageData ? (
+        <img 
+          src={imageData}
+          alt="Generated Chart" 
+          className="max-w-full h-auto rounded-lg shadow-md transition-opacity duration-300"
+          onLoad={handleImageLoad}
+          onError={handleImageError}
+        />
+      ) : null}
     </div>
   );
 }
