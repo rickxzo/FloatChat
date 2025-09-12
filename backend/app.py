@@ -232,7 +232,7 @@ Viz = TextAgent(
     import matplotlib.pyplot as plt
 
     
-    response = requests.get("https://floatchat-2-bpyp.onrender.com/data")
+    response = requests.get("https://floatchat-3-xaau.onrender.com/data")
 
     payload = response.json()
 
@@ -269,7 +269,7 @@ DFM = TextAgent(
     import pandas as pd
     import numpy as np
 
-    response = requests.get("https://floatchat-2-bpyp.onrender.com/data")
+    response = requests.get("https://floatchat-3-xaau.onrender.com/data")
     data = response["data"]
     cols = response["cols"]
 
