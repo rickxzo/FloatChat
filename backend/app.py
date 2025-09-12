@@ -347,9 +347,17 @@ def router(state: CB) -> str:
     print("ROUTER INVOKED")
     output = state["output"]
     print(output)
-    output = json.loads(output)
+    try:
+        output = json.loads(output)
+    except json.JSONDecodeError as e:
+
+        type= Action.gen(output)
+        output={
+        "type": type
+        }
     print("JSON PARSING: ",output)
     return output["type"]
+
 
 def web_search(state: CB):
     print("WEB SEARCH INVOKED")
