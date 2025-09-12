@@ -299,6 +299,7 @@ Action = TextAgent(
 
     DO NOT WRITE ANYTHING EXTRA.
     """
+)
 
 Aout = TextAgent(
     "openai/o4-mini",
@@ -320,6 +321,7 @@ Aout = TextAgent(
 
     DO NOT WRITE ANYTHING EXTRA.
     """
+)
 ### BASE AGENT
 
 class CB(TypedDict):
