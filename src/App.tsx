@@ -54,69 +54,67 @@ export default function App() {
     msgIndex: number,
     chunk: string
   ) => {
-    // Convert \n into actual newlines and split into points
-    const points = chunk
-      .split("\\n") // split on escaped \n from backend
-      .map((line) => line.trim())
-      .filter(Boolean);
+    setSessions((prev) =>
+      prev.map((s) => {
+        if (s.id !== sessionId) return s;
+        const updatedMessages = [...s.messages];
+        const msg = updatedMessages[msgIndex];
+        if (!msg) return s;
 
-    points.forEach((point, i) => {
-      setTimeout(() => {
+        updatedMessages[msgIndex] = {
+          ...msg,
+          text: msg.text + chunk,
+          visibleWords: msg.visibleWords 
+            ? [...msg.visibleWords, chunk.trim()]
+            : [chunk.trim()], // 🎯 Add word to visibleWords array
+        };
+        return { ...s, messages: updatedMessages };
+      })
+    );
+  };
+
+  // Helper function to fetch image when ANIMGT is detected
+  const fetchGeneratedImage = async (sessionId: string, messageIndex: number) => {
+    try {
+      console.log("Fetching image from /img endpoint...");
+      
+      const response = await fetch("http://127.0.0.1:10000/img");
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log("Image response received");
+      
+      if (data.image) {
+        console.log("Setting image_url in message...");
         setSessions((prev) =>
           prev.map((s) => {
             if (s.id !== sessionId) return s;
             const updatedMessages = [...s.messages];
-            const msg = updatedMessages[msgIndex];
-            if (!msg) return s;
-
-            // Add bullet and newline for pointwise formatting
-            const newText = msg.text + `\n- ${point}`;
-            updatedMessages[msgIndex] = {
-              ...msg,
-              text: newText,
-              visibleWords: msg.visibleWords
-                ? [...msg.visibleWords, point]
-                : [point],
-            };
+            if (updatedMessages[messageIndex]) {
+              updatedMessages[messageIndex] = {
+                ...updatedMessages[messageIndex],
+                image_url: data.image
+              };
+            }
             return { ...s, messages: updatedMessages };
           })
         );
-      }, i * 50);
-    });
-  };
-
-  // helper: rename first chat after bot response
-  const maybeRenameFirstChat = async (sessionId: string) => {
-    const session = sessions.find((s) => s.id === sessionId);
-    if (!session) return;
-
-    // first user and first bot messages
-    const userMsg = session.messages.find((m) => m.role === "user")?.text;
-    const botMsg = session.messages.find((m) => m.role === "model")?.text;
-
-    if (!userMsg || !botMsg) return;
-
-    try {
-      const res = await fetch("http://localhost:5000/api/rename", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user: userMsg, bot: botMsg }),
-      });
-      const data = await res.json();
-      const newTitle =
-        data.title ||
-        (botMsg.length > 30 ? botMsg.slice(0, 30) + "..." : botMsg);
-
-      setSessions((prev) =>
-        prev.map((s) => (s.id === sessionId ? { ...s, title: newTitle } : s))
-      );
-    } catch (err) {
-      console.error("Rename failed:", err);
+      }
+    } catch (error) {
+      console.error("Failed to fetch generated image:", error);
     }
   };
 
-  // Generate bot response (updated for server-side chart generation)
-  const generateBotResponse = (id: string, history: ChatMessage[]) => {
+  // Generate bot response
+  const generateBotResponse = (id: string | null, history: ChatMessage[]) => {
+    if (!id) {
+      console.error("No active session id. Aborting generateBotResponse.");
+      return;
+    }
+    
     if (sseControllers.current[id]) return;
 
     const controller = new AbortController();
@@ -132,12 +130,12 @@ export default function App() {
     updateSessionMessages(id, newHistory);
     const modelIndex = newHistory.length - 1;
 
-    let didRename = false; // Track whether rename was already done
+    let didRename = false;
 
     (async () => {
       try {
         if (mode === "study") {
-          // For study mode, use direct API call instead of SSE for chart generation
+          // Study mode logic remains the same
           const response = await fetch("http://localhost:5000/api/study", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -152,9 +150,7 @@ export default function App() {
           }
 
           const result = await response.json();
-          console.log("Study mode response:", result);
 
-          // Handle the response
           setSessions((prev) =>
             prev.map((s) => {
               if (s.id !== id) return s;
@@ -163,9 +159,9 @@ export default function App() {
                 updatedMessages[modelIndex] = {
                   ...updatedMessages[modelIndex],
                   text: result.response || "Chart generated successfully!",
-                  plot_url: result.plot_url, // NEW: Add plot URL for server-generated charts
+                  plot_url: result.plot_url,
                   toolLogs: result.tool_logs || [],
-                  sandbox: false, // No longer using browser sandbox
+                  sandbox: false,
                   sandbox_code: null,
                 };
               }
@@ -173,12 +169,7 @@ export default function App() {
             })
           );
 
-          // Handle renaming for first message
-          if (
-            !didRename &&
-            history.length === 1 &&
-            result.response
-          ) {
+          if (!didRename && history.length === 1 && result.response) {
             didRename = true;
             try {
               const renameRes = await fetch("http://localhost:5000/api/rename", {
@@ -204,20 +195,20 @@ export default function App() {
           delete sseControllers.current[id];
 
         } else {
-          // --- Normal Chat Mode (Replicate) - keep existing SSE logic ---
-          await fetch("http://localhost:5000/api/stream", {
+          // Normal Chat Mode with proper ANIMGT handling
+          await fetch("http://127.0.0.1:10000/respond", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               messages: newHistory.map(({ role, text }) => ({
-                role: role === "model" ? "assistant" : role, // map "model" → "assistant"
+                role: role === "model" ? "assistant" : role,
                 content: text,
               })),
             }),
             signal: controller.signal,
           });
 
-          const response = await fetch("http://localhost:5000/api/stream", {
+          const response = await fetch("http://127.0.0.1:10000/respond", {
             method: "GET",
             signal: controller.signal,
           });
@@ -226,7 +217,7 @@ export default function App() {
 
           const reader = response.body.getReader();
           const decoder = new TextDecoder("utf-8");
-          let finalBotMsg = "";
+          let fullBotMessage = "";
 
           while (true) {
             const { done, value } = await reader.read();
@@ -240,46 +231,54 @@ export default function App() {
               const word = line.replace("data:", "").trim();
               if (!word) continue;
 
-              if (word === "[END]") {
-                if (
-                  !didRename &&
-                  history.length === 1 &&
-                  finalBotMsg.trim().length > 0
-                ) {
-                  didRename = true;
-                  const renameRes = await fetch(
-                    "http://localhost:5000/api/rename",
-                    {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({
-                        user: history[0].text,
-                        bot: finalBotMsg,
-                      }),
-                    }
-                  );
-                  const data = await renameRes.json();
-                  const newTitle =
-                    data.title ||
-                    (finalBotMsg.length > 30
-                      ? finalBotMsg.slice(0, 30) + "..."
-                      : finalBotMsg);
-
-                  setSessions((prev) =>
-                    prev.map((s) =>
-                      s.id === id ? { ...s, title: newTitle } : s
-                    )
-                  );
-                }
-
-                delete sseControllers.current[id];
-                break;
-              }
-
-              finalBotMsg += word + " ";
+              fullBotMessage += word + " ";
               appendSSEChunk(id, modelIndex, word + " ");
             }
           }
+
+          // After streaming is complete, check for ANIMGT
+          console.log("Full bot message:", fullBotMessage);
+          
+          if (fullBotMessage.includes("ANIMGT")) {
+            console.log("ANIMGT detected! Cleaning message and fetching image...");
+            
+            // Clean the message by removing ANIMGT
+            const cleanedMessage = fullBotMessage.replace(/ANIMGT\s*/g, "").trim();
+            
+            setSessions((prev) =>
+              prev.map((s) => {
+                if (s.id !== id) return s;
+                const updatedMessages = [...s.messages];
+                if (updatedMessages[modelIndex]) {
+                  updatedMessages[modelIndex] = {
+                    ...updatedMessages[modelIndex],
+                    text: cleanedMessage,
+                  };
+                }
+                return { ...s, messages: updatedMessages };
+              })
+            );
+
+            // Fetch the generated image
+            await fetchGeneratedImage(id, modelIndex);
+          }
+
+          // Handle renaming for first chat
+          if (!didRename && history.length === 1 && fullBotMessage.trim().length > 0) {
+            didRename = true;
+            const cleanedForTitle = fullBotMessage.replace(/ANIMGT\s*/g, "").trim();
+            const newTitle = cleanedForTitle.length > 30 
+              ? cleanedForTitle.slice(0, 30) + "..." 
+              : cleanedForTitle;
+
+            setSessions((prev) =>
+              prev.map((s) =>
+                s.id === id ? { ...s, title: newTitle } : s
+              )
+            );
+          }
+
+          delete sseControllers.current[id];
         }
       } catch (err: any) {
         console.error("Bot response error:", err);
@@ -298,12 +297,6 @@ export default function App() {
   };
 
   const activeSession = sessions.find((s) => s.id === activeSessionId);
-
-  const updateMessages = (msgs: ChatMessage[]) => {
-    setSessions((prev) =>
-      prev.map((s) => (s.id === activeSessionId ? { ...s, messages: msgs } : s))
-    );
-  };
 
   const handleClick = (e: React.MouseEvent) => {
     const newBubble = { id: Date.now(), x: e.clientX, y: e.clientY };
@@ -335,11 +328,10 @@ export default function App() {
         />
 
         <div className="flex-1 flex flex-col">
-          {/* Header */}
           <div className="backdrop-ocean border-b border-blue-400/20 p-4 flex items-center justify-between">
             <div>
               <h1 className="text-ocean-light drop-shadow-lg text-lg font-semibold">
-                🌊 OceanBot
+                🌊 FloatChat
               </h1>
               <p className="text-blue-200/80 text-sm">
                 Explore the depths of ocean science
@@ -363,17 +355,12 @@ export default function App() {
             )}
           </div>
 
-          {/* Chat interface */}
           {activeSession ? (
             <ChatInterface
               key={activeSession.id}
               session={activeSession}
-              updateMessages={(msgs) =>
-                updateSessionMessages(activeSession.id, msgs)
-              }
-              generateBotResponse={(history) =>
-                generateBotResponse(activeSession.id, history)
-              }
+              updateMessages={(msgs) => updateSessionMessages(activeSession.id, msgs)}
+              generateBotResponse={(history) => generateBotResponse(activeSession.id, history)}
             />
           ) : (
             <div className="flex-1 flex items-center justify-center text-gray-500">
