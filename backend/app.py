@@ -353,7 +353,10 @@ def router(state: CB) -> str:
 
 def web_search(state: CB):
     print("WEB SEARCH INVOKED")
-    query = json.loads(state["output"])["output"]
+    try:
+        query = json.loads(state["output"])["output"]
+    except json.JSONDecodeError as e:
+        query = Aout.gen(state["output"])
     result = exa.search_and_contents(
         query,
         text = True,
