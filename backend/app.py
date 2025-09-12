@@ -279,10 +279,46 @@ DFM = TextAgent(
     NO NEED TO ADD ```python ``` at the start and end.
     """
 )
-ACTION = TextAgent(
+Action = TextAgent(
     "openai/o4-mini",
     """
-    
+    Given a json of the following format:
+    {
+    "type": ~text~,
+    "output': ~text~
+    }
+    reply with just the "type" string.
+    Example:
+    INPUT:
+    {
+    "type": "web",
+    "output': "prompt"
+    }
+    OUTPUT:
+    web
+
+    DO NOT WRITE ANYTHING EXTRA.
+    """
+
+Aout = TextAgent(
+    "openai/o4-mini",
+    """
+    Given a json of the following format:
+    {
+    "type": ~text~,
+    "output': ~text~
+    }
+    reply with just the "output" string.
+    Example:
+    INPUT:
+    {
+    "type": "web",
+    "output': "prompt"
+    }
+    OUTPUT:
+    prompt
+
+    DO NOT WRITE ANYTHING EXTRA.
     """
 ### BASE AGENT
 
