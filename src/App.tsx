@@ -7,7 +7,6 @@ import { P5Background } from "./components/P5Background";
 import { ModeToggle } from "./components/ModeToggle";
 import type { ChatSession, ChatMessage } from "./types/chat";
 import { FishBackground } from "./components/FishBackground";
-import { Chart } from "./components/Chart";
 
 export default function App() {
   const [bubbles, setBubbles] = useState<
@@ -139,7 +138,7 @@ export default function App() {
       try {
         if (mode === "study") {
           // For study mode, use direct API call instead of SSE for chart generation
-          const response = await fetch("https://floatchat-1.onrender.com/respond", {
+          const response = await fetch("http://localhost:5000/api/study", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -206,7 +205,7 @@ export default function App() {
 
         } else {
           // --- Normal Chat Mode (Replicate) - keep existing SSE logic ---
-          await fetch("https://floatchat-1.onrender.com/respond", {
+          await fetch("http://localhost:5000/api/stream", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -218,7 +217,7 @@ export default function App() {
             signal: controller.signal,
           });
 
-          const response = await fetch("https://floatchat-1.onrender.com/respond", {
+          const response = await fetch("http://localhost:5000/api/stream", {
             method: "GET",
             signal: controller.signal,
           });
@@ -363,9 +362,6 @@ export default function App() {
               />
             )}
           </div>
-
-          {/* Chart Section */}
-          {/* <Chart /> */}
 
           {/* Chat interface */}
           {activeSession ? (
