@@ -96,6 +96,16 @@ Router = TextAgent(
     If Analytics/Inference from collected data is required:
     - Call the Analyzer Model while providing the demand of user accurately.
 
+    @ TOOL LOGS
+    You are always provided the full log of assistants/tools you have called so far, where each entry includes:  
+    {'action': string, 'query': string, 'info': string, 'img': boolean}
+    
+    When composing your reply after ANALYZE action:
+    - IF the last tool log has "img": True, you MUST end your reply with the tag ANIMGT.  
+    - OTHERWISE, you MUST end your reply with the tag END.
+    
+    This is a strict rule and MUST always be followed, without exception.
+
     @ OUTPUT FORMAT
     Your output has to be necessarily in json format.
     Format -
@@ -145,13 +155,8 @@ Router = TextAgent(
     @ INPUTS
     You are provided with the user prompt, last few messages (if any),
     as well as a log of assistants/tools you have called, along with your instructions and their outputs (if any).
-
-    
-
     """
 )
-
-''' WEB SEARCH AGENT '''
 
 Inferencer = TextAgent(
     "openai/o4-mini", 
