@@ -327,6 +327,8 @@ class CB(TypedDict):
     output: str
     tool_logs: list[str, str]
     response: str
+    action : str
+    prompt : str 
 
 def start(state: CB):
     prompt = f"""
