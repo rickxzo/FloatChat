@@ -392,7 +392,10 @@ def web_search(state: CB):
 
 def research(state: CB):
     print("RESEARCH INVOKED")
-    query = json.loads(state["output"])["output"]
+    try:
+        query = json.loads(state["output"])["output"]
+    except json.JSONDecodeError as e:
+        query = Aout.gen(state["output"])
     research = exa.research.create(
         instructions = query,
         model = "exa-research",
@@ -412,13 +415,22 @@ def research(state: CB):
 
 def reply(state: CB):
     print("REPLY INVOKED")
+    reponse= json.loads(state["output"])["output"]
+    try:
+        response = json.loads(state["output"])["output"]
+    except json.JSONDecodeError as e:
+        response = Aout.gen(state["output"])
     return {
-        "response": json.loads(state["output"])["output"]
+        "response": response
     }
 
 def analyse(state: CB):
     print("ANALYZE INVOKED")
-    cmd = DBM.gen(json.loads(state["output"])["output"])
+    try:
+        out = json.loads(state["output"])["output"]
+    except json.JSONDecodeError as e:
+        out = Aout.gen(state["output"])
+    cmd = DBM.gen(out)
     conn = connect_db()
     curr = conn.cursor()
     app.logger.info("SQL CMD: ",cmd)
