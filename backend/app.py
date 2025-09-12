@@ -284,15 +284,15 @@ Action = TextAgent(
     """
     Given a json of the following format:
     {
-    "type": ~text~,
-    "output': ~text~
+    'type': ~text~,
+    'output': ~text~
     }
     reply with just the "type" string.
     Example:
     INPUT:
     {
-    "type": "web",
-    "output': "prompt"
+    'type': 'web',
+    'output': 'prompt'
     }
     OUTPUT:
     web
