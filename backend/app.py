@@ -508,7 +508,9 @@ def img():
     global b64
     return jsonify({"image": b64})
 
-
+def home():
+    return redirect("https://floatchat-3-xaau.onrender.com")
+    
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))  
     app.run(host='0.0.0.0', port=port, debug=True)
