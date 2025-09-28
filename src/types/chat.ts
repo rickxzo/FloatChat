@@ -7,6 +7,8 @@ export interface ChatMessage {
   sandbox?: boolean;
   sandbox_code?: string | null;
   plot_url?: string;
+  image_url?: string;
+  isTemporary?: boolean;
 }
 
 export interface ChatSession {
