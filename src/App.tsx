@@ -61,12 +61,16 @@ export default function App() {
         const msg = updatedMessages[msgIndex];
         if (!msg) return s;
 
+        const newText = msg.text + chunk;
+        const isTemporary = newText.includes("..."); // Check if message contains "..."
+
         updatedMessages[msgIndex] = {
           ...msg,
-          text: msg.text + chunk,
-          visibleWords: msg.visibleWords 
+          text: newText,
+          isTemporary, // Set temporary status
+          visibleWords: msg.visibleWords
             ? [...msg.visibleWords, chunk.trim()]
-            : [chunk.trim()], // 🎯 Add word to visibleWords array
+            : [chunk.trim()],
         };
         return { ...s, messages: updatedMessages };
       })
@@ -74,19 +78,22 @@ export default function App() {
   };
 
   // Helper function to fetch image when ANIMGT is detected
-  const fetchGeneratedImage = async (sessionId: string, messageIndex: number) => {
+  const fetchGeneratedImage = async (
+    sessionId: string,
+    messageIndex: number
+  ) => {
     try {
       console.log("Fetching image from /img endpoint...");
-      
+
       const response = await fetch("http://127.0.0.1:10000/img");
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
+
       const data = await response.json();
       console.log("Image response received");
-      
+
       if (data.image) {
         console.log("Setting image_url in message...");
         setSessions((prev) =>
@@ -96,7 +103,7 @@ export default function App() {
             if (updatedMessages[messageIndex]) {
               updatedMessages[messageIndex] = {
                 ...updatedMessages[messageIndex],
-                image_url: data.image
+                image_url: data.image,
               };
             }
             return { ...s, messages: updatedMessages };
@@ -114,7 +121,7 @@ export default function App() {
       console.error("No active session id. Aborting generateBotResponse.");
       return;
     }
-    
+
     if (sseControllers.current[id]) return;
 
     const controller = new AbortController();
@@ -172,15 +179,18 @@ export default function App() {
           if (!didRename && history.length === 1 && result.response) {
             didRename = true;
             try {
-              const renameRes = await fetch("http://localhost:5000/api/rename", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  user: history[0].text,
-                  bot: result.response,
-                  mode: "study",
-                }),
-              });
+              const renameRes = await fetch(
+                "http://localhost:5000/api/rename",
+                {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    user: history[0].text,
+                    bot: result.response,
+                    mode: "study",
+                  }),
+                }
+              );
               const renameData = await renameRes.json();
               const newTitle = renameData.title || "New Study Chat";
 
@@ -193,7 +203,6 @@ export default function App() {
           }
 
           delete sseControllers.current[id];
-
         } else {
           // Normal Chat Mode with proper ANIMGT handling
           await fetch("http://127.0.0.1:10000/respond", {
@@ -218,6 +227,7 @@ export default function App() {
           const reader = response.body.getReader();
           const decoder = new TextDecoder("utf-8");
           let fullBotMessage = "";
+          let isStatusPhase = true;
 
           while (true) {
             const { done, value } = await reader.read();
@@ -232,19 +242,68 @@ export default function App() {
               if (!word) continue;
 
               fullBotMessage += word + " ";
-              appendSSEChunk(id, modelIndex, word + " ");
+              
+              // Check if we've moved past status messages to actual content
+              // Status messages contain: "Analyzing", "your", "query...", "Querying", "database...", "Processing", "results..."
+              const statusWords = ["analyzing", "your", "query...", "querying", "database...", "processing", "results..."];
+              const isStatusWord = statusWords.some(statusWord => word.toLowerCase().includes(statusWord));
+              
+              if (!isStatusWord && isStatusPhase) {
+                // We've hit the first non-status word, clear any temporary content and start fresh
+                isStatusPhase = false;
+                setSessions((prev) =>
+                  prev.map((s) => {
+                    if (s.id !== id) return s;
+                    const updatedMessages = [...s.messages];
+                    if (updatedMessages[modelIndex]) {
+                      updatedMessages[modelIndex] = {
+                        ...updatedMessages[modelIndex],
+                        text: word + " ", // Start fresh with actual content
+                        isTemporary: false,
+                        visibleWords: [word],
+                      };
+                    }
+                    return { ...s, messages: updatedMessages };
+                  })
+                );
+              } else if (!isStatusPhase) {
+                // Normal content streaming after status phase
+                appendSSEChunk(id, modelIndex, word + " ");
+              } else {
+                // Still in status phase, show as temporary
+                appendSSEChunk(id, modelIndex, word + " ");
+              }
             }
           }
 
-          // After streaming is complete, check for ANIMGT
+          // Clean up temporary messages and finalize
           console.log("Full bot message:", fullBotMessage);
-          
+
+          // Remove temporary status and finalize the message
+          setSessions((prev) =>
+            prev.map((s) => {
+              if (s.id !== id) return s;
+              const updatedMessages = [...s.messages];
+              if (updatedMessages[modelIndex]) {
+                updatedMessages[modelIndex] = {
+                  ...updatedMessages[modelIndex],
+                  isTemporary: false, // Mark as permanent
+                };
+              }
+              return { ...s, messages: updatedMessages };
+            })
+          );
+
           if (fullBotMessage.includes("ANIMGT")) {
-            console.log("ANIMGT detected! Cleaning message and fetching image...");
-            
+            console.log(
+              "ANIMGT detected! Cleaning message and fetching image..."
+            );
+
             // Clean the message by removing ANIMGT
-            const cleanedMessage = fullBotMessage.replace(/ANIMGT\s*/g, "").trim();
-            
+            const cleanedMessage = fullBotMessage
+              .replace(/ANIMGT\s*/g, "")
+              .trim();
+
             setSessions((prev) =>
               prev.map((s) => {
                 if (s.id !== id) return s;
@@ -264,17 +323,22 @@ export default function App() {
           }
 
           // Handle renaming for first chat
-          if (!didRename && history.length === 1 && fullBotMessage.trim().length > 0) {
+          if (
+            !didRename &&
+            history.length === 1 &&
+            fullBotMessage.trim().length > 0
+          ) {
             didRename = true;
-            const cleanedForTitle = fullBotMessage.replace(/ANIMGT\s*/g, "").trim();
-            const newTitle = cleanedForTitle.length > 30 
-              ? cleanedForTitle.slice(0, 30) + "..." 
-              : cleanedForTitle;
+            const cleanedForTitle = fullBotMessage
+              .replace(/ANIMGT\s*/g, "")
+              .trim();
+            const newTitle =
+              cleanedForTitle.length > 30
+                ? cleanedForTitle.slice(0, 30) + "..."
+                : cleanedForTitle;
 
             setSessions((prev) =>
-              prev.map((s) =>
-                s.id === id ? { ...s, title: newTitle } : s
-              )
+              prev.map((s) => (s.id === id ? { ...s, title: newTitle } : s))
             );
           }
 
@@ -284,10 +348,10 @@ export default function App() {
         console.error("Bot response error:", err);
         updateSessionMessages(id, [
           ...history,
-          { 
-            role: "model" as const, 
-            text: "⚠️ " + err.message, 
-            isError: true 
+          {
+            role: "model" as const,
+            text: "⚠️ " + err.message,
+            isError: true,
           },
         ]);
       } finally {
@@ -359,8 +423,12 @@ export default function App() {
             <ChatInterface
               key={activeSession.id}
               session={activeSession}
-              updateMessages={(msgs) => updateSessionMessages(activeSession.id, msgs)}
-              generateBotResponse={(history) => generateBotResponse(activeSession.id, history)}
+              updateMessages={(msgs) =>
+                updateSessionMessages(activeSession.id, msgs)
+              }
+              generateBotResponse={(history) =>
+                generateBotResponse(activeSession.id, history)
+              }
             />
           ) : (
             <div className="flex-1 flex items-center justify-center text-gray-500">
