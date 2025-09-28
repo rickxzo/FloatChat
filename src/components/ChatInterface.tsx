@@ -9,8 +9,22 @@ interface ChatInterfaceProps {
 
 function formatBotMessage(text: string, visibleWords?: string[]) {
   if (!visibleWords) {
-    // Fallback for completed messages
-    return <span>{text}</span>;
+    // Fallback for completed messages - format the text properly
+    const formattedText = text
+      .replace(/(\d+\.\s)/g, '\n$1') // Add line breaks before numbered items
+      .replace(/•\s/g, '\n• ') // Add line breaks before bullet points
+      .replace(/–\s/g, '\n– ') // Add line breaks before em dashes
+      .trim();
+    
+    return (
+      <div>
+        {formattedText.split('\n').map((line, index) => (
+          <div key={index} className={line.trim() === '' ? 'h-2' : ''}>
+            {line.trim() === '' ? '\u00A0' : line}
+          </div>
+        ))}
+      </div>
+    );
   }
 
   return (
@@ -71,9 +85,14 @@ export function ChatInterface({
                   ? "bg-blue-600 text-white rounded-br-none"
                   : msg.isError
                   ? "bg-red-200 text-red-800 rounded-bl-none"
+                  : msg.isTemporary
+                  ? "bg-yellow-100 text-yellow-800 rounded-bl-none border border-yellow-200 animate-pulse"
                   : "bg-white text-blue-900 rounded-bl-none border border-blue-100"
               }`}>
-                <div className="whitespace-pre-wrap">
+                <div className="whitespace-pre-wrap flex items-center">
+                  {msg.isTemporary && (
+                    <span className="mr-2 animate-spin">⚡</span>
+                  )}
                   {formatBotMessage(msg.text, msg.visibleWords)} 
                 </div>
 
@@ -83,6 +102,8 @@ export function ChatInterface({
                     ? "right-0 bottom-0 border-l-[12px] border-l-blue-600"
                     : msg.isError
                     ? "left-0 bottom-0 border-r-[12px] border-r-red-200"
+                    : msg.isTemporary
+                    ? "left-0 bottom-0 border-r-[12px] border-r-yellow-100"
                     : "left-0 bottom-0 border-r-[12px] border-r-white"
                 }`} />
               </div>
