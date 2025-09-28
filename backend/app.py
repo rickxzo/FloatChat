@@ -155,8 +155,13 @@ Router = TextAgent(
     @ INPUTS
     You are provided with the user prompt, last few messages (if any),
     as well as a log of assistants/tools you have called, along with your instructions and their outputs (if any).
+
+    
+
     """
 )
+
+''' WEB SEARCH AGENT '''
 
 Inferencer = TextAgent(
     "openai/o4-mini", 
@@ -232,12 +237,13 @@ Viz = TextAgent(
     import matplotlib.pyplot as plt
 
     
-    response = requests.get("https://floatchat-3-xaau.onrender.com/data")
+    # response = requests.get("https://floatchat-2-bpyp.onrender.com/data")
+    # payload = response.json()
+    # data = payload.get("data")
+    # cols = payload.get("cols")
 
-    payload = response.json()
-
-    data = payload.get("data")
-    cols = payload.get("cols")
+    data = [('2020', 34.956097560975614)]
+    cols = ['year', 'avg_sea_surface_salinity']
 
     ### YOUR CODE HERE
 
@@ -269,9 +275,12 @@ DFM = TextAgent(
     import pandas as pd
     import numpy as np
 
-    response = requests.get("https://floatchat-3-xaau.onrender.com/data")
-    data = response["data"]
-    cols = response["cols"]
+    # response = requests.get("https://floatchat-2-bpyp.onrender.com/data")
+    # data = response["data"]
+    # cols = response["cols"]
+
+    data = [('2020', 34.956097560975614)]
+    cols = ['year', 'avg_sea_surface_salinity']
 
     ### YOUR CODE HERE. RETURN ALL ANALYSIS IN A SINGLE PRINT.
 
@@ -279,49 +288,7 @@ DFM = TextAgent(
     NO NEED TO ADD ```python ``` at the start and end.
     """
 )
-Action = TextAgent(
-    "openai/o4-mini",
-    """
-    Given a json of the following format:
-    {
-    'type': ~text~,
-    'output': ~text~
-    }
-    reply with just the "type" string.
-    Example:
-    INPUT:
-    {
-    'type': 'web',
-    'output': 'prompt'
-    }
-    OUTPUT:
-    web
 
-    DO NOT WRITE ANYTHING EXTRA.
-    """
-)
-
-Aout = TextAgent(
-    "openai/o4-mini",
-    """
-    Given a json of the following format:
-    {
-    "type": ~text~,
-    "output': ~text~
-    }
-    reply with just the "output" string.
-    Example:
-    INPUT:
-    {
-    "type": "web",
-    "output': "prompt"
-    }
-    OUTPUT:
-    prompt
-
-    DO NOT WRITE ANYTHING EXTRA.
-    """
-)
 ### BASE AGENT
 
 class CB(TypedDict):
@@ -407,6 +374,12 @@ def reply(state: CB):
 
 def analyse(state: CB):
     print("ANALYZE INVOKED")
+
+    def add_status(message):
+        # This would need to be captured by the streaming function
+        # For now, we'll modify the approach
+        pass
+
     cmd = DBM.gen(json.loads(state["output"])["output"])
     conn = connect_db()
     curr = conn.cursor()
@@ -513,35 +486,80 @@ def respond():
         convo = ""
         for i in range(num_msg):
             if data["messages"][i]["role"] == "user":
-                convo += f"User: {data["messages"][i]["content"]}\n"
+                convo += f"User: {data['messages'][i]['content']}\n"
             else:
-                convo += f"You: {data["messages"][i]["content"]}\n"
+                convo += f"You: {data['messages'][i]['content']}\n"
         
         app.logger.info("POSTMSG %s", convo)
-        response = agent.invoke({
-            "messages": convo,
-            "output": "",
-            "tool_logs": [],
-            "response": ""
-        })
-        session["gns"] = response["response"].split()
-        app.logger.info("POSTLOGGER %s", session["gns"])
-        return {"status":"ok", "received": session["gns"]}
+        
+        # Store conversation in session for GET request processing
+        session["conversation"] = convo
+        session["processing"] = True
+        
+        app.logger.info("POSTLOGGER - Conversation stored")
+        return {"status":"ok", "received": "processing"}
     
-  #  return jsonify({"response": response["response"], "msg": msg})
     else:
-        app.logger.info("GETLOGGER %s", session["gns"])
-        def generate(k):
-            i = 0
-            lk = len(k)
-            while i<lk:
-                yield f"data: {k[i]}\n\n"
-                time.sleep(0.02)
-                i+=1
-            #yield f"data: [DONE]\n\n"
-        return Response(stream_with_context(generate(session["gns"])), mimetype="text/event-stream")
-
-
+        def generate_with_status():
+            if "conversation" not in session:
+                return
+                
+            convo = session["conversation"]
+            
+            # Send status messages during processing
+            yield f"data: Analyzing\n\n"
+            yield f"data: your\n\n"
+            yield f"data: query...\n\n"
+            time.sleep(0.5)
+            
+            # Check if it's an analyze query
+            if any(word in convo.lower() for word in ["plot", "chart", "analyze", "data", "temperature", "pressure", "salinity", "yearwise", "yearly"]):
+                yield f"data: Querying\n\n"
+                yield f"data: database...\n\n"
+                time.sleep(0.5)
+                
+                yield f"data: Processing\n\n" 
+                yield f"data: results...\n\n"
+                time.sleep(0.5)
+            
+            # Process the actual request with error handling
+            try:
+                response = agent.invoke({
+                    "messages": convo,
+                    "output": "",
+                    "tool_logs": [],
+                    "response": ""
+                })
+                
+                # Clear processing flag
+                session["processing"] = False
+                
+                # Stream final response
+                words = response["response"].split()
+                for word in words:
+                    yield f"data: {word}\n\n"
+                    time.sleep(0.02)
+                    
+            except Exception as e:
+                # Handle any errors during processing
+                app.logger.error(f"Agent invoke error: {str(e)}")
+                session["processing"] = False
+                
+                # Send error message to client
+                yield f"data: Sorry,\n\n"
+                yield f"data: I\n\n"
+                yield f"data: encountered\n\n"
+                yield f"data: an\n\n"
+                yield f"data: error\n\n"
+                yield f"data: processing\n\n"
+                yield f"data: your\n\n"
+                yield f"data: request.\n\n"
+                yield f"data: Please\n\n"
+                yield f"data: try\n\n"
+                yield f"data: again.\n\n"
+        
+        return Response(stream_with_context(generate_with_status()), mimetype="text/event-stream")
+    
 @app.route("/data", methods=["GET","POST"])
 def data():
     global data
