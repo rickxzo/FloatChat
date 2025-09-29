@@ -329,9 +329,19 @@ export default function App() {
             fullBotMessage.trim().length > 0
           ) {
             didRename = true;
-            const cleanedForTitle = fullBotMessage
+            
+            // 🎯 Filter out temporary status messages before creating title
+            const statusWords = ["analyzing", "your", "query", "querying", "database", "processing", "results"];
+            const words = fullBotMessage.split(" ");
+            const contentWords = words.filter(word => 
+              !statusWords.some(statusWord => word.toLowerCase().includes(statusWord)) &&
+              !word.includes("...")
+            );
+            
+            const cleanedForTitle = contentWords.join(" ")
               .replace(/ANIMGT\s*/g, "")
               .trim();
+              
             const newTitle =
               cleanedForTitle.length > 30
                 ? cleanedForTitle.slice(0, 30) + "..."
